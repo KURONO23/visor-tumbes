@@ -1,0 +1,19 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variables de entorno y credenciales (PROTEGER)
+.env
+.env.local
+
+# Archivos temporales o de cache pesada
+backend/data/_temp/
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

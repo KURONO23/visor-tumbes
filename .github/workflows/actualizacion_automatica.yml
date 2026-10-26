@@ -1,0 +1,65 @@
+name: Actualización Hidrológica Automática - Tumbes
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Ejecución cada 3 horas (00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC)
+    - cron: "0 */3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: orquestador-tumbes
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias del sistema (GDAL / Geoespaciales)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Instalar librerías Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas requests python-dotenv rasterio geopandas shapely h5py beautifulsoup4
+
+      - name: Ejecutar Orquestador Tumbes
+        env:
+          SENAMHI_API_KEY: ${{ secrets.SENAMHI_API_KEY }}
+          UCAR_EMAIL: ${{ secrets.UCAR_EMAIL }}
+          UCAR_PASS: ${{ secrets.UCAR_PASS }}
+        run: |
+          python backend/codes/orquestador_tumbes.py
+
+      - name: Guardar datos actualizados en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Agregar datos de caudal y lluvia procesados
+          git add backend/data_caudal/
+          git add backend/data_lluvia/
+
+          # Si se descargaron nuevos rasters
+          if [ -d "backend/data" ]; then
+            git add backend/data/
+          fi
+
+          # Hacer commit solo si hay cambios
+          git commit -m "Auto-actualización hidrológica Tumbes [skip ci]" || echo "No hay cambios para guardar"
+          git push origin main || echo "Push no requerido o sin cambios"
